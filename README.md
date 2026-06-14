@@ -52,4 +52,78 @@ Here is a pre-start checklist:
 
 ## Implementation
 
-** ADD YOUR IMPLEMENTATION DOCUMENTATION HERE **
+# HiveBox
+
+A scalable RESTful API project built around [openSenseMap](https://opensensemap.org/) data, customized to help beekeepers monitor environmental conditions. This project is being built incrementally as part of the [DevOps Roadmap HiveBox project](https://devopsroadmap.io/projects/hivebox/).
+
+## Project Status
+
+**Current version:** `v0.0.1` (Phase 2)
+
+At this stage, the application is intentionally minimal: it simply prints its current version number and exits. This establishes the foundation — versioning, containerization, and a documented testing workflow — that later phases will build on.
+
+## Prerequisites
+
+To build and run this project, you'll need:
+
+- [Git](https://git-scm.com/)
+- [Docker](https://www.docker.com/)
+- (Optional, for running without Docker) Python 3.x
+
+## Project Structure
+
+- `app.py` — main application entry point; contains the function that prints the app version
+- `requirements.txt` — Python dependencies (minimal at this stage)
+- `Dockerfile` — defines how the app is containerized
+- `.dockerignore` / `.gitignore` — exclude unnecessary files from the image and repository
+
+## Running Locally (without Docker)
+
+1. Clone this repository and navigate into the project directory.
+2. (Optional) Create and activate a Python virtual environment.
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+4. Run the application:
+   ```
+   python app.py
+   ```
+
+**Expected output:** the application prints its current version (`0.0.1`) to the terminal and exits.
+
+## Building and Running with Docker
+
+1. Build the Docker image:
+   ```
+   docker build -t hivebox:0.0.1 .
+   ```
+2. Run a container from the image:
+   ```
+   docker run hivebox:0.0.1
+   ```
+
+**Expected output:** the container prints `0.0.1` to the terminal, then exits cleanly (exit code `0`).
+
+## Testing
+
+To verify this version of the application works as expected:
+
+1. Build the Docker image as shown above.
+2. Run the container.
+3. Confirm the printed output matches the version defined in `app.py`.
+4. Confirm the container exits on its own after printing the version (no manual stop required).
+
+## Versioning
+
+This project follows [Semantic Versioning](https://semver.org/). The current release is tagged as `v0.0.1` in this repository.
+
+## Roadmap
+
+This project is developed incrementally, phase by phase, following the [HiveBox project roadmap](https://devopsroadmap.io/projects/hivebox/). Each phase is implemented in its own pull request against `main`.
+
+- [x] Phase 1 — Project setup and planning
+- [x] Phase 2 — Initial versioned app (`v0.0.1`), Dockerfile, and local testing workflow
+- [ ] Phase 3 — REST API endpoints (`/version`, `/temperature`), CI pipeline
+- [ ] Phase 4 — Kubernetes deployment, metrics endpoint
+- [ ] Phase 5 — Caching, storage, Helm charts, observability
