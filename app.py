@@ -1,8 +1,49 @@
+from fastapi import FastAPI
+import requests
+from datetime import datetime, timezone
+
 version = "v0.0.1"
+senseBoxId = "5f52892137e925001bcca76e"
+
+app = FastAPI()
+
+@app.get("/version")
+async def printAppVersion():
+    return {"version": "v0.0.1"}
 
 
-def printAppVersion():
-    print(version)
+@app.get("/temperature")
+async def getTemperature():
+    url = f"https://api.opensensemap.org/boxes/{senseBoxId}"
 
+    try:
+        response = requests.get(url).json()
+        sensors = response.get("sensors", [])
+        
+        valid_temperatures = []
+        current_time = datetime.now(timezone.utc)
+        
+        for sensor in sensors:
+            # Check if the sensor measures temperature
+            if "temperatur" in sensor.get("title", "").lower() or "temperature" in sensor.get("phenomenon", "").lower():
+                last_meas = sensor.get("lastMeasurement")
+                
+                if last_meas:
+                    # Parse timestamp and check data age
+                    created_at = datetime.fromisoformat(last_meas["createdAt"].replace("Z", "+00:00"))
+                    age_minutes = (current_time - created_at).total_seconds() / 60
+                    
+                    if age_minutes <= 60:
+                        valid_temperatures.append(float(last_meas["value"]))
+                        print(f"Sensor '{sensor['title']}': {last_meas['value']}°C (Age: {age_minutes:.1f} mins)")
+                    else:
+                        print(f"⚠️ Skipped '{sensor['title']}': Stale data ({age_minutes:.1f} mins old)")
 
-printAppVersion()
+        if valid_temperatures:
+            avg_temp = sum(valid_temperatures) / len(valid_temperatures)
+            return f"Average Temperature: {avg_temp:.2f}°C"
+        else:
+            return "\n❌ Error: No temperature sensors have reported data within the last hour."
+
+    except Exception as e:
+        print(f"Network or data error: {e}")
