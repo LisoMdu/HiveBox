@@ -1,3 +1,8 @@
+""" 
+The goal of this project is to build a scalable RESTful API around 
+openSenseMap but customized to help beekeepers with their chores.  
+"""
+
 from datetime import datetime, timezone
 from fastapi import FastAPI
 import requests
