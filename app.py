@@ -65,7 +65,7 @@ async def get_temperature():
         if valid_temperatures:
             avg_temp = sum(valid_temperatures) / len(valid_temperatures)
             model_response[avg_temp] = avg_temp
-            
+
             if avg_temp < 10:
                 model_response[status] = "Too Cold"
             elif 11 < avg_temp < 36:
