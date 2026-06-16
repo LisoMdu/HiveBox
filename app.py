@@ -6,11 +6,16 @@ openSenseMap but customized to help beekeepers with their chores.
 from datetime import datetime, timezone
 from fastapi import FastAPI
 import requests
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
+
 
 VERSION = "v0.0.1"
 SENSEBOXID = "5f52892137e925001bcca76e"
 
 app = FastAPI()
+
+instrumentator = Instrumentator()
+instrumentator.instrument(app).expose(app)
 
 @app.get("/version")
 async def print_app_version():
