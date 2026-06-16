@@ -6,7 +6,7 @@ openSenseMap but customized to help beekeepers with their chores.
 from datetime import datetime, timezone
 from fastapi import FastAPI
 import requests
-from prometheus_fastapi_instrumentator import Instrumentator, metrics
+from prometheus_fastapi_instrumentator import Instrumentator
 
 
 VERSION = "v0.0.1"
