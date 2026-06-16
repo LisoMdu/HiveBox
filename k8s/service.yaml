@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: hive-service
+
+spec:
+  type: ClusterIP
+  selector:
+    app: hive
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP

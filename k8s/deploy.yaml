@@ -1,0 +1,31 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: hive
+  labels:
+    app: hive
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hive
+  template:
+    metadata:
+      labels:
+        app: hive
+    spec:
+      containers:
+        - name: hivebox
+          image: hivebox:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu:  "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
