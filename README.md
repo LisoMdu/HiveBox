@@ -4,25 +4,40 @@ A scalable RESTful API project built around [openSenseMap](https://opensensemap.
 
 ## Project Status
 
-**Current version:** `v0.1.0` (Phase 3)
+**Current version:** `v0.1.0` (Phase 4)
 
-The application is a REST API built with FastAPI, exposing endpoints for version information and real-time temperature data sourced from openSenseMap senseBoxes.
+The application is a REST API built with FastAPI, exposing endpoints for version information, real-time temperature data sourced from openSenseMap senseBoxes, and Prometheus metrics. It is deployed on a local Kubernetes cluster using KIND with Ingress-Nginx.
 
 ## Prerequisites
 
-To build and run this project, you'll need:
+To build and run this project locally, you'll need:
 
 - [Git](https://git-scm.com/)
 - [Docker](https://www.docker.com/)
-- (Optional, for running without Docker) Python 3.12
+- [KIND](https://kind.sigs.k8s.io/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [Helm](https://helm.sh/)
+- (Optional, for running without Docker/Kubernetes) Python 3.12
 
 ## Project Structure
 
-- `app.py` — main application entry point; contains the FastAPI app and all endpoint definitions
-- `requirements.txt` — Python dependencies
-- `Dockerfile` — defines how the app is containerized following Docker best practices
-- `.dockerignore` / `.gitignore` — exclude unnecessary files from the image and repository
-- `.github/workflows/ci.yml` — GitHub Actions CI pipeline
+```
+HiveBox/
+├── app.py                        # Main application entry point
+├── Dockerfile                    # Container definition
+├── requirements.txt              # Python dependencies
+├── .dockerignore                 
+├── .gitignore                    
+├── k8s/                          # Kubernetes manifests
+│   ├── kind-config.yaml          # KIND cluster configuration
+│   ├── deployment.yaml           # HiveBox deployment manifest
+│   ├── service.yaml              # HiveBox service manifest
+│   └── ingress.yaml              # Ingress routing rules
+└── .github/
+    └── workflows/
+        ├── ci.yml                # CI pipeline
+        └── cd.yml                # CD pipeline
+```
 
 ## API Endpoints
 
@@ -36,14 +51,26 @@ Returns the current version of the deployed application.
   ```
 
 ### `GET /temperature`
-Returns the current average temperature based on live senseBox data from openSenseMap.
+Returns the current average temperature based on live senseBox data from openSenseMap. Only uses sensor readings no older than 1 hour.
 
 - **Parameters:** None
-- **Requirements:** Only uses sensor readings no older than 1 hour.
 - **Example response:**
   ```json
-  { "average_temperature": 21.4 }
+  {
+    "average_temperature": 21.4,
+    "status": "Good"
+  }
   ```
+- **Status values:**
+  - `Too Cold` — average temperature below 10°C
+  - `Good` — average temperature between 10°C and 37°C
+  - `Too Hot` — average temperature above 37°C
+
+### `GET /metrics`
+Returns default Prometheus metrics about the application.
+
+- **Parameters:** None
+- **Response format:** Prometheus text exposition format (not JSON)
 
 ## Running Locally (without Docker)
 
@@ -63,46 +90,104 @@ Returns the current average temperature based on live senseBox data from openSen
 
 1. Build the Docker image:
    ```
-   docker build -t hivebox:0.1.0 .
+   docker build -t hivebox:latest .
    ```
 2. Run the container:
    ```
-   docker run -p 8000:8000 hivebox:0.1.0
+   docker run -p 8000:8000 hivebox:latest
    ```
 3. The API will be available at `http://localhost:8000`.
 
+## Kubernetes Deployment (KIND)
+
+### 1. Create the KIND cluster
+```
+kind create cluster --config k8s/kind-config.yaml
+```
+
+### 2. Install Ingress-Nginx
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+```
+
+Wait for Ingress-Nginx to be ready:
+```
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=90s
+```
+
+### 3. Load the Docker image into KIND
+```
+docker build -t hivebox:latest .
+kind load docker-image hivebox:latest
+```
+
+### 4. Apply the Kubernetes manifests
+```
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
+### 5. Verify everything is running
+```
+kubectl get pods
+kubectl get service
+kubectl get ingress
+```
+
+Wait until the pod shows `Running` status, then the API will be available at `http://localhost`.
+
 ## Manual Testing
 
-Once the container is running, you can test the endpoints in any of the following ways:
+Once the application is running (either locally or via Kubernetes), you can test the endpoints in any of the following ways:
 
 **Interactive docs (recommended):**
-Navigate to `http://localhost:8000/docs` in your browser. FastAPI's built-in Swagger UI lets you execute requests directly from the browser.
+- Local: `http://localhost:8000/docs`
+- Kubernetes: `http://localhost/docs`
 
-**Browser:**
-For GET endpoints, paste the URL directly into your browser's address bar:
-- `http://localhost:8000/version`
-- `http://localhost:8000/temperature`
-
-**curl:**
+**Browser or curl:**
 ```
-curl http://localhost:8000/version
-curl http://localhost:8000/temperature
+curl http://localhost/version
+curl http://localhost/temperature
+curl http://localhost/metrics
 ```
 
 ## Continuous Integration
 
-This project uses GitHub Actions for CI. The pipeline runs automatically on every push and pull request against `main` and performs the following steps:
+This project uses GitHub Actions for CI. The pipeline runs automatically on every push and pull request and performs the following steps:
 
 1. Lint Python code with `pylint`
 2. Lint the Dockerfile with `hadolint`
-3. Build the Docker image
-4. Call the `/version` endpoint and verify it returns the correct value
+3. Scan Kubernetes manifests for misconfigurations with `Terrascan`
+4. Build the Docker image
 
 Security posture is also monitored via the [OpenSSF Scorecard GitHub Action](https://securityscorecards.dev/#using-the-github-action).
 
+## Continuous Delivery
+
+A separate CD pipeline triggers automatically when a version tag (e.g. `v0.1.0`) is pushed. It builds the Docker image and publishes it to the GitHub Container Registry (GHCR):
+
+```
+ghcr.io/your-github-username/hivebox:0.1.0
+```
+
+To trigger a release:
+```
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The published image can be pulled directly from GHCR:
+```
+docker pull ghcr.io/your-github-username/hivebox:0.1.0
+```
+
 ## Versioning
 
-This project follows [Semantic Versioning](https://semver.org/). The current release is tagged as `v0.1.0` in this repository.
+This project follows [Semantic Versioning](https://semver.org/). Each release is tagged in this repository and published to GHCR automatically via the CD pipeline.
 
 ## Roadmap
 
@@ -111,5 +196,5 @@ This project is developed incrementally, phase by phase, following the [HiveBox 
 - [x] Phase 1 — Project setup and planning
 - [x] Phase 2 — Initial versioned app (`v0.0.1`), Dockerfile, and local testing workflow
 - [x] Phase 3 — REST API endpoints (`/version`, `/temperature`), Docker best practices, CI pipeline
-- [ ] Phase 4 — Kubernetes deployment, metrics endpoint
-- [ ] Phase 5 — Caching, storage, Helm charts, observability
+- [x] Phase 4 — Kubernetes deployment with KIND and Ingress-Nginx, `/metrics` endpoint, temperature status field, Terrascan, CD pipeline with GHCR
+- [ ] Phase 5 — Caching with Valkey, storage with MinIO, Helm charts, observability
